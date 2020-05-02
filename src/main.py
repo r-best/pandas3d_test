@@ -2,7 +2,7 @@ from math import pi, sin, cos
 
 from direct.showbase.ShowBase import ShowBase
 from direct.actor.Actor import Actor
-from panda3d.core import ClockObject, CollisionTraverser, CollisionNode, CollisionPlane, Plane
+from panda3d.core import ClockObject, CollisionTraverser, CollisionHandlerQueue, CollisionNode, CollisionRay, CollisionPlane, Plane, GeomNode
 from panda3d.physics import ForceNode, LinearVectorForce, PhysicsCollisionHandler
 
 from .utils import Utils
@@ -21,44 +21,64 @@ class World(ShowBase):
 
         # Register global events
         self.accept('mouse1', self.onclick)
+        self.accept('mouse3', self.spawn_entity)
 
-        self.camera.setPos(250, -550, 200)
-        self.camera.setHpr(0, -15, 0)
-        
+        # Enable physics and collision
         self.enableParticles()
+        self.collisionHandler = PhysicsCollisionHandler()
         self.cTrav = CollisionTraverser('collision_traverser')
         self.cTrav.showCollisions(self.render)
         self.taskMgr.add(self.traverseTask, "tsk_traverse")
+
+        # Set up camera
+        self.camera.setPos(250, -550, 200)
+        self.camera.setHpr(0, -15, 0)
+        self.cameraCollisionHandler = CollisionHandlerQueue()
+        self.cameraRay = CollisionRay()
+        cameraRayNode = CollisionNode('mouseRay')
+        cameraRayNode.setIntoCollideMask(0)
+        cameraRayNode.addSolid(self.cameraRay)
+        cameraRayNp = self.camera.attachNewNode(cameraRayNode)
+        self.cTrav.addCollider(cameraRayNp, self.cameraCollisionHandler)
 
         # Render floor, for debugging
         floorNP = render.attachNewNode(CollisionNode('floor'))
         floorNP.node().addSolid(CollisionPlane(Plane((0,0,0), (500,0,0), (0,500,0))))
         
         # Establish gravity
-        gravityForce=LinearVectorForce(0, 0, -Utils.GRAVITY)
-        gravityFN=ForceNode('world-forces')
+        gravityForce  =LinearVectorForce(0, 0, -Utils.GRAVITY)
+        gravityFN = ForceNode('world-forces')
         gravityFN.addForce(gravityForce)
-        gravityFNP=render.attachNewNode(gravityFN)
+        gravityFNP = render.attachNewNode(gravityFN)
         self.physicsMgr.addLinearForce(gravityForce)
-
-        self.collisionHandler = PhysicsCollisionHandler()
-    
-    def traverseTask(self, task):
-        for i in range(self.collisionHandler.getNumInPatterns()):
-            entry = self.collisionHandler.getInPattern(i)
-            print(f"IN COLLISION {i}")
-        for i in range(self.collisionHandler.getNumOutPatterns()):
-            entry = self.collisionHandler.getOutPattern(i)
-            print(f"OUT COLLISION {i}")
-        for i in range(self.collisionHandler.getNumAgainPatterns()):
-            entry = self.collisionHandler.getAgainPattern(i)
-            print(f"AGAIN COLLISION {i}")
-        return task.cont
 
     def onclick(self):
         """
         """
-        self.spawn_entity()
+        # First we check that the mouse is not outside the screen.
+        if base.mouseWatcherNode.hasMouse():
+            mpos = base.mouseWatcherNode.getMouse()
+            self.cameraRay.setFromLens(self.camNode, mpos.x, mpos.y)
+
+            self.cTrav.traverse(self.render)
+            if self.cameraCollisionHandler.getNumEntries() > 0:
+                self.cameraCollisionHandler.sortEntries()
+                pickedObj = self.cameraCollisionHandler.getEntry(0).getIntoNodePath()
+                pickedObj = pickedObj.findNetTag('clickable')
+                if not pickedObj.isEmpty():
+                    print(f"CLICKED ON {pickedObj}")
+    
+    def traverseTask(self, task):
+        # for i in range(self.collisionHandler.getNumInPatterns()):
+        #     entry = self.collisionHandler.getInPattern(i)
+        #     print(f"IN COLLISION {i}")
+        # for i in range(self.collisionHandler.getNumOutPatterns()):
+        #     entry = self.collisionHandler.getOutPattern(i)
+        #     print(f"OUT COLLISION {i}")
+        # for i in range(self.collisionHandler.getNumAgainPatterns()):
+        #     entry = self.collisionHandler.getAgainPattern(i)
+        #     print(f"AGAIN COLLISION {i}")
+        return task.cont
     
     def spawn_entity(self, entity_type="Bird"):
         """
@@ -69,8 +89,8 @@ class World(ShowBase):
             self.add_task(entity_type, entity.ID, task)
         entity.nodePath.reparent_to(self.render)
         self.physicsMgr.attachPhysicalNode(entity)
-        self.collisionHandler.addCollider(entity.collisionBox, entity.nodePath)
         self.cTrav.addCollider(entity.collisionBox, self.collisionHandler)
+        self.collisionHandler.addCollider(entity.collisionBox, entity.nodePath)
         print(f"Spawned {entity_type} with ID {entity.ID}")
         return entity
     

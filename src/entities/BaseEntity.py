@@ -20,6 +20,7 @@ class BaseEntity(ActorNode):
         self.nodePath = NodePath(self)
         self.actor = Actor(self.MODEL)
         self.actor.reparent_to(self.nodePath)
+        self.setTag('clickable', '1')
         
         # Set up hitbox
         pt1, pt2 = self.nodePath.getTightBounds()
