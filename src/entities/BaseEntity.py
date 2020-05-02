@@ -24,9 +24,10 @@ class BaseEntity(ActorNode):
         # Set up hitbox
         pt1, pt2 = self.nodePath.getTightBounds()
         width = pt2.getX() - pt1.getX()
-        height = pt2.getY() - pt1.getY()
+        depth = pt2.getY() - pt1.getY()
+        height = pt2.getZ() - pt1.getZ()
         self.collisionBox = self.nodePath.attachNewNode(CollisionNode(f'{type(self).__name__}_{self.ID}_collisionBox'))
-        self.collisionBox.node().addSolid(CollisionBox((0,0,0), width/2, width/2, height/2))
+        self.collisionBox.node().addSolid(CollisionBox((0,0,height/2), width/2, depth/2, height/2))
         self.collisionBox.show()
         
         self.nodePath.setPos(
@@ -34,6 +35,8 @@ class BaseEntity(ActorNode):
             random.uniform(0, 500),
             random.uniform(0, 300)
         )
+
+        self.getPhysicsObject().setVelocity(0,0,80)
     
     def setScale(self, scale=1):
         """Resizes the entity and its hitbox to the desired scale
