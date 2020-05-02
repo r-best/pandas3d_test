@@ -1,14 +1,11 @@
 from math import pi, sin, cos
 
 from direct.showbase.ShowBase import ShowBase
-from direct.task import Task
 from direct.actor.Actor import Actor
-from direct.interval.IntervalGlobal import Sequence
-from panda3d.core import ClockObject, CollisionTraverser, CollisionFloorMesh, CollisionNode, CollisionHandlerFloor
-from panda3d.physics import ForceNode, LinearVectorForce
+from panda3d.core import ClockObject, CollisionTraverser, CollisionNode, CollisionPlane, Plane
+from panda3d.physics import ForceNode, LinearVectorForce, PhysicsCollisionHandler
 
 from entities.Bird import Bird
-from utils.Utils import rectangle
 
 
 GRAVITY = 98.0
@@ -37,38 +34,31 @@ class World(ShowBase):
         self.enableParticles()
         self.cTrav = CollisionTraverser('collision_traverser')
         self.cTrav.showCollisions(self.render)
-        # self.taskMgr.add(self.traverseTask, "tsk_traverse")
+        self.taskMgr.add(self.traverseTask, "tsk_traverse")
 
         # Render floor, for debugging
-        # self.render.attachNewNode(rectangle('floor', 0, 0, 0, 50, 50))
         floorNP = render.attachNewNode(CollisionNode('floor'))
-        floor = CollisionFloorMesh()
-        floor.addVertex((0, 0, 0))
-        floor.addVertex((500, 0, 0))
-        floor.addVertex((0, 500, 0))
-        floor.addVertex((500, 500, 0))
-        floor.addTriangle(0, 1, 2)
-        floor.addTriangle(3, 2, 1)
-        print(floor.getNumTriangles())
-        floorNP.node().addSolid(floor)
+        floorNP.node().addSolid(CollisionPlane(Plane((0,0,0), (500,0,0), (0,500,0))))
         
         # Establish gravity
-        # gravityForce=LinearVectorForce(0, 0, -GRAVITY)
-        # gravityFN=ForceNode('world-forces')
-        # gravityFN.addForce(gravityForce)
-        # gravityFNP=render.attachNewNode(gravityFN)
-        # self.physicsMgr.addLinearForce(gravityForce)
-        
-        self.floorCollisionHandler = CollisionHandlerFloor()
-        self.floorCollisionHandler.setMaxVelocity(GRAVITY)
+        gravityForce=LinearVectorForce(0, 0, -GRAVITY)
+        gravityFN=ForceNode('world-forces')
+        gravityFN.addForce(gravityForce)
+        gravityFNP=render.attachNewNode(gravityFN)
+        self.physicsMgr.addLinearForce(gravityForce)
+
+        self.collisionHandler = PhysicsCollisionHandler()
     
-    #** This is the loop periodically checked to find out if the have been collisions - it is fired by the taskMgr.add function set below.
     def traverseTask(self, task):
-    # as soon as a collison is detected, the collision queue handler will contain all the objects taking part in the collison, but we must sort that list first, so to have the first INTO object collided then the second and so on. Of course here it is pretty useless 'cos there is just one INTO object to collide with in the scene but this is the way to go when there are many other.
-        # self.floorCollisionHandler.sortEntries()
-        # for i in range(self.floorCollisionHandler.getNumEntries()):
-        #     entry = self.floorCollisionHandler.getEntry(i)
-        #     print(f"COLLISION {i}")
+        for i in range(self.collisionHandler.getNumInPatterns()):
+            entry = self.collisionHandler.getInPattern(i)
+            print(f"IN COLLISION {i}")
+        for i in range(self.collisionHandler.getNumOutPatterns()):
+            entry = self.collisionHandler.getOutPattern(i)
+            print(f"OUT COLLISION {i}")
+        for i in range(self.collisionHandler.getNumAgainPatterns()):
+            entry = self.collisionHandler.getAgainPattern(i)
+            print(f"AGAIN COLLISION {i}")
         return task.cont
 
     def onclick(self):
@@ -85,8 +75,8 @@ class World(ShowBase):
             self.add_task(entity_type, entity.ID, task)
         entity.nodePath.reparent_to(self.render)
         self.physicsMgr.attachPhysicalNode(entity)
-        self.floorCollisionHandler.addCollider(entity.floorFinder, entity.nodePath)
-        self.cTrav.addCollider(entity.floorFinder, self.floorCollisionHandler)
+        self.collisionHandler.addCollider(entity.collisionBox, entity.nodePath)
+        self.cTrav.addCollider(entity.collisionBox, self.collisionHandler)
         print(f"Spawned {entity_type} with ID {entity.ID}")
         return entity
     
