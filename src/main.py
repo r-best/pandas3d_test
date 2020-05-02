@@ -5,14 +5,8 @@ from direct.actor.Actor import Actor
 from panda3d.core import ClockObject, CollisionTraverser, CollisionNode, CollisionPlane, Plane
 from panda3d.physics import ForceNode, LinearVectorForce, PhysicsCollisionHandler
 
-from entities.Bird import Bird
+from .utils import Utils
 
-
-GRAVITY = 98.0
-
-ENTITY_MAP = {
-    "Bird": Bird
-}
 
 class World(ShowBase):
 
@@ -41,7 +35,7 @@ class World(ShowBase):
         floorNP.node().addSolid(CollisionPlane(Plane((0,0,0), (500,0,0), (0,500,0))))
         
         # Establish gravity
-        gravityForce=LinearVectorForce(0, 0, -GRAVITY)
+        gravityForce=LinearVectorForce(0, 0, -Utils.GRAVITY)
         gravityFN=ForceNode('world-forces')
         gravityFN.addForce(gravityForce)
         gravityFNP=render.attachNewNode(gravityFN)
@@ -69,7 +63,7 @@ class World(ShowBase):
     def spawn_entity(self, entity_type="Bird"):
         """
         """
-        entity = ENTITY_MAP[entity_type]()
+        entity = Utils.ENTITY_MAP[entity_type]()
         self.actors.append(entity)
         for task in entity.tasks:
             self.add_task(entity_type, entity.ID, task)
