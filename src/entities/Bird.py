@@ -1,6 +1,6 @@
 import random
 
-from direct.task import Task
+from panda3d.core import CollisionBox, CollisionNode, CollisionHandlerFloor, CollisionRay
 
 from .BaseEntity import BaseEntity
 
@@ -14,30 +14,24 @@ class Bird(BaseEntity):
 
     def __init__(self):
         super().__init__()
-        self.setScale(0.005)
-        self.setPos(
-            random.uniform(0, 50),
-            random.uniform(0, 50),
-            random.uniform(0, 30)
+        self.actor.setScale(0.05)
+        self.nodePath.setPos(
+            random.uniform(0, 500),
+            random.uniform(0, 500),
+            random.uniform(0, 300)
         )
         self.tasks.append(self.act)
 
     # Override
     def act(self, task):
         """Main logic loop, overridden from BaseEntity"""
-        self.move(0, 0, -self.speed)
+        # self.move(0, 0, -self.speed)
         # self.setHpr(self, self.rotation, 0, 0)
-        self.setP(self.getP() + 15)
-        return Task.cont
+        # self.nodePath.setP(self.nodePath.getP() + 15)
+        # self.addli
+        return task.cont
     
     def move(self, x, y, z):
         """
         """
-        if z < 0 and self.getZ() + z < 0:
-            z = -self.getZ()
-        
-        self.setPos(
-            self.getX() + x,
-            self.getY() + y,
-            self.getZ() + z
-        )
+        pass
