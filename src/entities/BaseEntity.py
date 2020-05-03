@@ -63,6 +63,7 @@ class BaseEntity(ActorNode):
         """
         size = 1000 * self.actor.getScale()[0]
         rayNP = self.nodePath.attachNewNode(CollisionNode('collisionrays'))
+        rayNP.node().set_into_collide_mask(0)
         rayNP.setPos(rayNP, 0, 0, self.height/2)
         for i in range(numPoints):
             inclination = Math.acos(1 - 2*(i / (numPoints - 1)))
