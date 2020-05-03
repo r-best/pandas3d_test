@@ -43,10 +43,10 @@ class World(ShowBase):
 
         # Render floor, for debugging
         floorNP = render.attachNewNode(CollisionNode('floor'))
-        floorNP.node().addSolid(CollisionPlane(Plane((0,0,0), (500,0,0), (0,500,0))))
+        floorNP.node().addSolid(CollisionPlane(Plane((0,0,0), (1,0,0), (0,1,0))))
         
         # Establish gravity
-        gravityForce  =LinearVectorForce(0, 0, -Utils.GRAVITY)
+        gravityForce = LinearVectorForce(0, 0, -Utils.GRAVITY)
         gravityFN = ForceNode('world-forces')
         gravityFN.addForce(gravityForce)
         gravityFNP = render.attachNewNode(gravityFN)
@@ -66,7 +66,7 @@ class World(ShowBase):
                 pickedObj = self.cameraCollisionHandler.getEntry(0).getIntoNodePath()
                 pickedObj = pickedObj.findNetTag('clickable')
                 if not pickedObj.isEmpty():
-                    print(f"CLICKED ON {pickedObj}")
+                    pickedObj.node().getPhysicsObject().setVelocity(0,6000,80)
     
     def traverseTask(self, task):
         # for i in range(self.collisionHandler.getNumInPatterns()):
