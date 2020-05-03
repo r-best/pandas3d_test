@@ -10,22 +10,24 @@ class BaseEntity(ActorNode):
     """
     # Default entity model (overwritten by subclasses)
     MODEL = "models/teapot"
+    # Field of view; how many degrees to the side the entity can see
+    FOV = 180
+    VIEW_DISTANCE = 2
 
     def __init__(self):
         self.ID = id(self)
-        super().__init__(f"{type(self).__name__}_{self.ID}_physnode")
+        self.NAME = f"{type(self).__name__}_{self.ID}"
+        super().__init__(self.NAME)
+        self.setTag('clickable', '1')
         # List of tasks to register to the Panda task manager
-        self.tasks = (
-            self.act,
-        )
+        self.tasks = (self.act,)
         self.nodePath = NodePath(self)
         self.actor = Actor(self.MODEL)
         self.actor.reparent_to(self.nodePath)
-        self.setTag('clickable', '1')
-        
+
         # Set up hitbox
         self.calculateDims()
-        self.collisionBox = self.nodePath.attachNewNode(CollisionNode(f'{type(self).__name__}_{self.ID}_collisionBox'))
+        self.collisionBox = self.nodePath.attachNewNode(CollisionNode(f'{self.NAME}_collisionBox'))
         self.collisionBox.node().addSolid(CollisionBox((0,0,self.height/2), self.width/2, self.depth/2, self.height/2))
         self.collisionBox.show()
         
@@ -37,7 +39,7 @@ class BaseEntity(ActorNode):
 
         self.getPhysicsObject().setVelocity(0,0,80)
         # self.generateViewRays()
-
+    
     def act(self, task):
         """Main logic loop for the entity, overridden in subclasses"""
         return task.cont
@@ -51,27 +53,65 @@ class BaseEntity(ActorNode):
         self.generateViewRays()
     
     def calculateDims(self):
-        """
+        """Recalculates the entity's dimensions and stores
+        them in the respective class fields (`self.width`,
+        `self.depth`, and `self.height`)
+        Should not need to be called unless you're modifying
+        the entity's size without using `self.setScale()`
         """
         pt1, pt2 = self.nodePath.getTightBounds()
         self.width = pt2.getX() - pt1.getX()
         self.depth = pt2.getY() - pt1.getY()
         self.height = pt2.getZ() - pt1.getZ()
 
-    def generateViewRays(self, numPoints=150):
+    def generateViewRays(self, numPoints=1000):
         """https://youtu.be/bqtqltqcQhw?t=333
         """
-        size = 1000 * self.actor.getScale()[0]
-        rayNP = self.nodePath.attachNewNode(CollisionNode('collisionrays'))
+        FIBONACCI = (1 + 5**0.5) / 2
+
+        # Calculate length of collision lines based on
+        # entity's size and view distance
+        size = self.VIEW_DISTANCE * 1000 * self.actor.getScale()[0]
+
+        ls = LineSegs()
+        ls.setThickness(1)
+        pointsColor = 0
+        
+        # Attach collision node that will hold all collision lines
+        rayNP = self.nodePath.attachNewNode(CollisionNode(f"{self.NAME}_collisionRays"))
         rayNP.node().set_into_collide_mask(0)
-        rayNP.setPos(rayNP, 0, 0, self.height/2)
+        rayNP.setPos(rayNP, 0, -self.depth/2, self.height/2)
+        rayNP.setHpr(0, 90, 0)
+
         for i in range(numPoints):
             inclination = Math.acos(1 - 2*(i / (numPoints - 1)))
-            azimuth = 2 * Math.pi * 0.618033 * i
+            azimuth = 2 * Math.pi * FIBONACCI * i
 
-            x = Math.sin(inclination) * Math.cos(azimuth) * size
-            y = Math.sin(inclination) * Math.sin(azimuth) * size
-            z = Math.cos(inclination) * size
+            if (inclination / Math.pi) < (self.FOV / 360):
+                x = Math.sin(inclination) * Math.cos(azimuth) * size
+                y = Math.sin(inclination) * Math.sin(azimuth) * size
+                z = Math.cos(inclination) * size
+            
+                self.drawPoint(ls, x, y, z, (pointsColor, 0, 0, 1))
+                pointsColor += 1/numPoints
+                rayNP.node().addSolid(CollisionSegment(0, 0, 0, x, y, z))
+                # rayNP.show()
+        pointsNP = self.nodePath.attachNewNode(ls.create())
+        pointsNP.setPos(pointsNP, 0, -self.depth/2, self.height/2)
+        pointsNP.setHpr(0, 90, 0)
 
-            rayNP.node().addSolid(CollisionSegment(0, 0, 0, x, y, z))
-            rayNP.show()
+    def drawPoint(self, ls, x, y, z, color):
+        """Draws a point at the specified coordinates relative
+        to the entity, using the given LineSegs object, useful
+        for debugging
+        """
+        ls.setColor(color)
+        ls.moveTo(x, y, z)
+        ls.drawTo(x+1, y, z)
+        ls.drawTo(x-1, y, z)
+        ls.moveTo(x, y, z)
+        ls.drawTo(x, y+1, z)
+        ls.drawTo(x, y-1, z)
+        ls.moveTo(x, y, z)
+        ls.drawTo(x, y, z+1)
+        ls.drawTo(x, y, z-1)

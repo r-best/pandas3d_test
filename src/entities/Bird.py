@@ -14,6 +14,5 @@ class Bird(BaseEntity):
     # Override
     def act(self, task):
         """Main logic loop, overridden from BaseEntity"""
-        self.actor.setH(self.actor.getH() + 5)
-        self.collisionBox.setH(self.collisionBox.getH() + 5)
+        # self.nodePath.setH(self.nodePath.getH() + 0.5)
         return task.cont
