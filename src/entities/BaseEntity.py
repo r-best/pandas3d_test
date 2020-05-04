@@ -12,7 +12,7 @@ class BaseEntity(ActorNode):
     MODEL = "models/teapot"
     # Field of view; how many degrees to the side the entity can see
     FOV = 180
-    VIEW_DISTANCE = 2
+    VIEW_DISTANCE = 1
 
     def __init__(self):
         self.ID = id(self)
@@ -24,22 +24,29 @@ class BaseEntity(ActorNode):
         self.nodePath = NodePath(self)
         self.actor = Actor(self.MODEL)
         self.actor.reparent_to(self.nodePath)
-
+        
         # Set up hitbox
         self.calculateDims()
         self.collisionBox = self.nodePath.attachNewNode(CollisionNode(f'{self.NAME}_collisionBox'))
         self.collisionBox.node().addSolid(CollisionBox((0,0,self.height/2), self.width/2, self.depth/2, self.height/2))
-        self.collisionBox.show()
+        # self.collisionBox.show()
+        
+        self.actor.accept(f"in-{self.collisionBox.node().name}", self.onCollision)
+        self.actor.accept(f'again-{self.collisionBox.node().name}', self.onCollision)
+        self.actor.accept(f'out-{self.collisionBox.node().name}', self.onCollision)
         
         self.nodePath.setPos(
-            random.uniform(0, 500),
-            random.uniform(0, 500),
+            random.uniform(0, 300),
+            random.uniform(0, 100),
             random.uniform(0, 150)
         )
 
         self.getPhysicsObject().setVelocity(0,0,80)
         # self.generateViewRays()
     
+    def onCollision(self, event):
+        print(event)
+
     def act(self, task):
         """Main logic loop for the entity, overridden in subclasses"""
         return task.cont
@@ -78,10 +85,10 @@ class BaseEntity(ActorNode):
         pointsColor = 0
         
         # Attach collision node that will hold all collision lines
-        rayNP = self.nodePath.attachNewNode(CollisionNode(f"{self.NAME}_collisionRays"))
-        rayNP.node().set_into_collide_mask(0)
-        rayNP.setPos(rayNP, 0, -self.depth/2, self.height/2)
-        rayNP.setHpr(0, 90, 0)
+        self.sightRayNP = self.nodePath.attachNewNode(CollisionNode(f"{self.NAME}_collisionRays"))
+        self.sightRayNP.node().set_into_collide_mask(0)
+        self.sightRayNP.setPos(rayNP, 0, -self.depth/2, self.height/2)
+        self.sightRayNP.setHpr(0, 90, 0)
 
         for i in range(numPoints):
             inclination = Math.acos(1 - 2*(i / (numPoints - 1)))
@@ -94,8 +101,9 @@ class BaseEntity(ActorNode):
             
                 self.drawPoint(ls, x, y, z, (pointsColor, 0, 0, 1))
                 pointsColor += 1/numPoints
-                rayNP.node().addSolid(CollisionSegment(0, 0, 0, x, y, z))
-                # rayNP.show()
+                self.sightRayNP.node().addSolid(CollisionSegment(0, 0, 0, x, y, z))
+                # self.sightRayNP.show()
+                self.sightRayNP.node().getSolid
         pointsNP = self.nodePath.attachNewNode(ls.create())
         pointsNP.setPos(pointsNP, 0, -self.depth/2, self.height/2)
         pointsNP.setHpr(0, 90, 0)

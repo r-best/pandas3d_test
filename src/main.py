@@ -2,7 +2,7 @@ from math import pi, sin, cos
 
 from direct.showbase.ShowBase import ShowBase
 from direct.actor.Actor import Actor
-from panda3d.core import ClockObject, CollisionTraverser, CollisionHandlerQueue, CollisionNode, CollisionRay, CollisionPlane, Plane, GeomNode
+from panda3d.core import ClockObject, CollisionTraverser, CollisionHandlerQueue, CollisionNode, CollisionRay, CollisionPlane, Plane, GeomNode, CollisionHandlerPusher
 from panda3d.physics import ForceNode, LinearVectorForce, PhysicsCollisionHandler
 
 from .utils import Utils
@@ -26,6 +26,9 @@ class World(ShowBase):
         # Enable physics and collision
         self.enableParticles()
         self.collisionHandler = PhysicsCollisionHandler()
+        self.collisionHandler.addInPattern('in-%in')
+        self.collisionHandler.addAgainPattern('again-%in')
+        self.collisionHandler.addOutPattern('out-%in')
         self.cTrav = CollisionTraverser('collision_traverser')
         self.cTrav.showCollisions(self.render)
         self.taskMgr.add(self.traverseTask, "tsk_traverse")
@@ -66,9 +69,12 @@ class World(ShowBase):
                 pickedObj = self.cameraCollisionHandler.getEntry(0).getIntoNodePath()
                 pickedObj = pickedObj.findNetTag('clickable')
                 if not pickedObj.isEmpty():
-                    pickedObj.node().getPhysicsObject().setVelocity(0,6000,80)
+                    pickedObj.node().getPhysicsObject().setVelocity(0,100,300)
     
     def traverseTask(self, task):
+        # print(f"NUM IN {self.collisionHandler.getNumInPatterns()}")
+        # print(f"NUM OUT {self.collisionHandler.getNumOutPatterns()}")
+        # print(f"NUM AGAIN {self.collisionHandler.getNumAgainPatterns()}")
         # for i in range(self.collisionHandler.getNumInPatterns()):
         #     entry = self.collisionHandler.getInPattern(i)
         #     print(f"IN COLLISION {i}")
