@@ -26,11 +26,11 @@ class World(ShowBase):
         # Enable physics and collision
         self.enableParticles()
         self.collisionHandler = PhysicsCollisionHandler()
-        self.collisionHandler.addInPattern('in-%in')
-        self.collisionHandler.addAgainPattern('again-%in')
-        self.collisionHandler.addOutPattern('out-%in')
+        self.collisionHandler.addInPattern('%fn-in-%in')
+        self.collisionHandler.addAgainPattern('%fn-again-%in')
+        self.collisionHandler.addOutPattern('%fn-out-%in')
         self.cTrav = CollisionTraverser('collision_traverser')
-        self.cTrav.showCollisions(self.render)
+        # self.cTrav.showCollisions(self.render)
         self.taskMgr.add(self.traverseTask, "tsk_traverse")
 
         # Set up camera

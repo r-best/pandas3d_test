@@ -1,8 +1,9 @@
-import math as Math
+import numpy as np
+import math as math
 import random
 
 from direct.actor.Actor import Actor
-from panda3d.core import NodePath, CollisionNode, CollisionBox, CollisionSegment, LineSegs
+from panda3d.core import NodePath, CollisionNode, CollisionBox, CollisionSegment, LineSegs, PandaNode
 from panda3d.physics import ActorNode
 
 class BaseEntity(ActorNode):
@@ -36,7 +37,7 @@ class BaseEntity(ActorNode):
         self.actor.accept(f'out-{self.collisionBox.node().name}', self.onCollision)
         
         self.nodePath.setPos(
-            random.uniform(0, 300),
+            random.uniform(100, 400),
             random.uniform(0, 100),
             random.uniform(0, 150)
         )
@@ -45,7 +46,8 @@ class BaseEntity(ActorNode):
         # self.generateViewRays()
     
     def onCollision(self, event):
-        print(event)
+        # print(event)
+        pass
 
     def act(self, task):
         """Main logic loop for the entity, overridden in subclasses"""
@@ -71,7 +73,7 @@ class BaseEntity(ActorNode):
         self.depth = pt2.getY() - pt1.getY()
         self.height = pt2.getZ() - pt1.getZ()
 
-    def generateViewRays(self, numPoints=1000):
+    def generateViewRays(self, numPoints=100):
         """https://youtu.be/bqtqltqcQhw?t=333
         """
         FIBONACCI = (1 + 5**0.5) / 2
@@ -87,23 +89,24 @@ class BaseEntity(ActorNode):
         # Attach collision node that will hold all collision lines
         self.sightRayNP = self.nodePath.attachNewNode(CollisionNode(f"{self.NAME}_collisionRays"))
         self.sightRayNP.node().set_into_collide_mask(0)
-        self.sightRayNP.setPos(rayNP, 0, -self.depth/2, self.height/2)
+        self.sightRayNP.setPos(self.sightRayNP, 0, -self.depth/2, self.height/2)
         self.sightRayNP.setHpr(0, 90, 0)
 
         for i in range(numPoints):
-            inclination = Math.acos(1 - 2*(i / (numPoints - 1)))
-            azimuth = 2 * Math.pi * FIBONACCI * i
+            inclination = math.acos(1 - 2*(i / (numPoints - 1)))
+            azimuth = 2 * math.pi * FIBONACCI * i
 
-            if (inclination / Math.pi) < (self.FOV / 360):
-                x = Math.sin(inclination) * Math.cos(azimuth) * size
-                y = Math.sin(inclination) * Math.sin(azimuth) * size
-                z = Math.cos(inclination) * size
-            
-                self.drawPoint(ls, x, y, z, (pointsColor, 0, 0, 1))
-                pointsColor += 1/numPoints
-                self.sightRayNP.node().addSolid(CollisionSegment(0, 0, 0, x, y, z))
-                # self.sightRayNP.show()
-                self.sightRayNP.node().getSolid
+            if (inclination / math.pi) > (self.FOV / 360):
+                break
+
+            x = math.sin(inclination) * math.cos(azimuth) * size
+            y = math.sin(inclination) * math.sin(azimuth) * size
+            z = math.cos(inclination) * size
+        
+            self.drawPoint(ls, x, y, z, (pointsColor, 0, 0, 1))
+            pointsColor += 1/numPoints
+            self.sightRayNP.node().addSolid(CollisionSegment(0, 0, 0, x, y, z))
+            # self.sightRayNP.show()
         pointsNP = self.nodePath.attachNewNode(ls.create())
         pointsNP.setPos(pointsNP, 0, -self.depth/2, self.height/2)
         pointsNP.setHpr(0, 90, 0)
