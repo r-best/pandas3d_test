@@ -2,8 +2,8 @@ from math import pi, sin, cos
 
 from direct.showbase.ShowBase import ShowBase
 from direct.actor.Actor import Actor
-from panda3d.core import ClockObject, CollisionTraverser, CollisionHandlerQueue, CollisionNode, CollisionRay, CollisionPlane, Plane, GeomNode, CollisionHandlerPusher
-from panda3d.physics import ForceNode, LinearVectorForce, PhysicsCollisionHandler
+from panda3d.core import ClockObject, Point3
+from panda3d.bullet import BulletWorld, BulletRigidBodyNode, BulletPlaneShape, BulletDebugNode
 
 from .utils import Utils
 
@@ -19,72 +19,56 @@ class World(ShowBase):
         self.disableMouse()
         self.setFrameRateMeter(True)
 
+        # Set up camera
+        self.camera.setPos(250, -550, 200)
+        self.camera.setHpr(0, -15, 0)
+
         # Register global events
         self.accept('mouse1', self.onclick)
         self.accept('mouse3', self.spawn_entity)
 
         # Enable physics and collision
-        self.enableParticles()
-        self.collisionHandler = PhysicsCollisionHandler()
-        self.collisionHandler.addInPattern('%fn-in-%in')
-        self.collisionHandler.addAgainPattern('%fn-again-%in')
-        self.collisionHandler.addOutPattern('%fn-out-%in')
-        self.cTrav = CollisionTraverser('collision_traverser')
-        # self.cTrav.showCollisions(self.render)
-        self.taskMgr.add(self.traverseTask, "tsk_traverse")
-
-        # Set up camera
-        self.camera.setPos(250, -550, 200)
-        self.camera.setHpr(0, -15, 0)
-        self.cameraCollisionHandler = CollisionHandlerQueue()
-        self.cameraRay = CollisionRay()
-        cameraRayNode = CollisionNode('mouseRay')
-        cameraRayNode.setIntoCollideMask(0)
-        cameraRayNode.addSolid(self.cameraRay)
-        cameraRayNp = self.camera.attachNewNode(cameraRayNode)
-        self.cTrav.addCollider(cameraRayNp, self.cameraCollisionHandler)
+        debugNode = BulletDebugNode('Debug')
+        debugNode.showWireframe(True)
+        debugNode.showConstraints(True)
+        debugNode.showBoundingBoxes(False)
+        debugNode.showNormals(True)
+        debugNP = render.attachNewNode(debugNode)
+        debugNP.show()
+        self.world = BulletWorld()
+        self.world.setGravity((0, 0, -981.00))
+        self.world.setDebugNode(debugNP.node())
+        self.taskMgr.add(self.update, "physics_update")
 
         # Render floor, for debugging
-        floorNP = render.attachNewNode(CollisionNode('floor'))
-        floorNP.node().addSolid(CollisionPlane(Plane((0,0,0), (1,0,0), (0,1,0))))
-        
-        # Establish gravity
-        gravityForce = LinearVectorForce(0, 0, -Utils.GRAVITY)
-        gravityFN = ForceNode('world-forces')
-        gravityFN.addForce(gravityForce)
-        gravityFNP = render.attachNewNode(gravityFN)
-        self.physicsMgr.addLinearForce(gravityForce)
+        node = BulletRigidBodyNode('floor')
+        node.addShape(BulletPlaneShape((0, 0, 1), 1))
+        self.render.attachNewNode(node)
+        self.world.attachRigidBody(node)
+    
+    def update(self, task):
+        """
+        """
+        dt = ClockObject.getGlobalClock().getDt()
+        self.world.doPhysics(dt)
+        return task.cont
 
     def onclick(self):
         """
         """
         # First we check that the mouse is not outside the screen.
         if base.mouseWatcherNode.hasMouse():
-            mpos = base.mouseWatcherNode.getMouse()
-            self.cameraRay.setFromLens(self.camNode, mpos.x, mpos.y)
+            pMouse = base.mouseWatcherNode.getMouse()
+            pFrom = Point3()
+            pTo = Point3()
+            base.camLens.extrude(pMouse, pFrom, pTo)
 
-            self.cTrav.traverse(self.render)
-            if self.cameraCollisionHandler.getNumEntries() > 0:
-                self.cameraCollisionHandler.sortEntries()
-                pickedObj = self.cameraCollisionHandler.getEntry(0).getIntoNodePath()
-                pickedObj = pickedObj.findNetTag('clickable')
-                if not pickedObj.isEmpty():
-                    pickedObj.node().getPhysicsObject().setVelocity(0,100,300)
-    
-    def traverseTask(self, task):
-        # print(f"NUM IN {self.collisionHandler.getNumInPatterns()}")
-        # print(f"NUM OUT {self.collisionHandler.getNumOutPatterns()}")
-        # print(f"NUM AGAIN {self.collisionHandler.getNumAgainPatterns()}")
-        # for i in range(self.collisionHandler.getNumInPatterns()):
-        #     entry = self.collisionHandler.getInPattern(i)
-        #     print(f"IN COLLISION {i}")
-        # for i in range(self.collisionHandler.getNumOutPatterns()):
-        #     entry = self.collisionHandler.getOutPattern(i)
-        #     print(f"OUT COLLISION {i}")
-        # for i in range(self.collisionHandler.getNumAgainPatterns()):
-        #     entry = self.collisionHandler.getAgainPattern(i)
-        #     print(f"AGAIN COLLISION {i}")
-        return task.cont
+            # Transform to global coordinates
+            pFrom = render.getRelativePoint(base.cam, pFrom)
+            pTo = render.getRelativePoint(base.cam, pTo)
+
+            obj = self.world.rayTestClosest(pFrom, pTo)
+            obj.getNode().setAngularVelocity((0,0,50))
     
     def spawn_entity(self, entity_type="Bird"):
         """
@@ -94,9 +78,7 @@ class World(ShowBase):
         for task in entity.tasks:
             self.add_task(entity_type, entity.ID, task)
         entity.nodePath.reparent_to(self.render)
-        self.physicsMgr.attachPhysicalNode(entity)
-        self.cTrav.addCollider(entity.collisionBox, self.collisionHandler)
-        self.collisionHandler.addCollider(entity.collisionBox, entity.nodePath)
+        self.world.attachRigidBody(entity)
         print(f"Spawned {entity_type} with ID {entity.ID}")
         return entity
     

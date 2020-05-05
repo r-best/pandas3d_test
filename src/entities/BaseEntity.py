@@ -1,12 +1,12 @@
+import random
 import numpy as np
 import math as math
-import random
 
 from direct.actor.Actor import Actor
-from panda3d.core import NodePath, CollisionNode, CollisionBox, CollisionSegment, LineSegs, PandaNode
-from panda3d.physics import ActorNode
+from panda3d.core import NodePath, CollisionNode, LineSegs
+from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 
-class BaseEntity(ActorNode):
+class BaseEntity(BulletRigidBodyNode):
     """
     """
     # Default entity model (overwritten by subclasses)
@@ -19,31 +19,22 @@ class BaseEntity(ActorNode):
         self.ID = id(self)
         self.NAME = f"{type(self).__name__}_{self.ID}"
         super().__init__(self.NAME)
-        self.setTag('clickable', '1')
         # List of tasks to register to the Panda task manager
         self.tasks = (self.act,)
         self.nodePath = NodePath(self)
+        self.nodePath.setTag('clickable', '1')
         self.actor = Actor(self.MODEL)
         self.actor.reparent_to(self.nodePath)
-        
-        # Set up hitbox
-        self.calculateDims()
-        self.collisionBox = self.nodePath.attachNewNode(CollisionNode(f'{self.NAME}_collisionBox'))
-        self.collisionBox.node().addSolid(CollisionBox((0,0,self.height/2), self.width/2, self.depth/2, self.height/2))
-        # self.collisionBox.show()
-        
-        self.actor.accept(f"in-{self.collisionBox.node().name}", self.onCollision)
-        self.actor.accept(f'again-{self.collisionBox.node().name}', self.onCollision)
-        self.actor.accept(f'out-{self.collisionBox.node().name}', self.onCollision)
+        self.setMass(1.0)
+
+        # Set up actor position, hitbox, and other size-dependent properties
+        self.setScale(1)
         
         self.nodePath.setPos(
             random.uniform(100, 400),
             random.uniform(0, 100),
             random.uniform(0, 150)
         )
-
-        self.getPhysicsObject().setVelocity(0,0,80)
-        # self.generateViewRays()
     
     def onCollision(self, event):
         # print(event)
@@ -57,21 +48,18 @@ class BaseEntity(ActorNode):
         """Resizes the entity and its hitbox to the desired scale
         """
         self.actor.setScale(scale)
-        self.collisionBox.setScale(scale)
-        self.calculateDims()
-        self.generateViewRays()
-    
-    def calculateDims(self):
-        """Recalculates the entity's dimensions and stores
-        them in the respective class fields (`self.width`,
-        `self.depth`, and `self.height`)
-        Should not need to be called unless you're modifying
-        the entity's size without using `self.setScale()`
-        """
-        pt1, pt2 = self.nodePath.getTightBounds()
+
+        # Calculate model's size
+        pt1, pt2 = self.actor.getTightBounds()
         self.width = pt2.getX() - pt1.getX()
         self.depth = pt2.getY() - pt1.getY()
         self.height = pt2.getZ() - pt1.getZ()
+
+        # Reassign all size-dependent fields
+        self.actor.setZ(-self.height/2)
+        if self.getNumShapes() > 0: self.removeShape(self.getShape(0))
+        self.addShape(BulletBoxShape((self.width/2, self.depth/2, self.height/2)))
+        self.generateViewRays()
 
     def generateViewRays(self, numPoints=100):
         """https://youtu.be/bqtqltqcQhw?t=333
@@ -105,8 +93,6 @@ class BaseEntity(ActorNode):
         
             self.drawPoint(ls, x, y, z, (pointsColor, 0, 0, 1))
             pointsColor += 1/numPoints
-            self.sightRayNP.node().addSolid(CollisionSegment(0, 0, 0, x, y, z))
-            # self.sightRayNP.show()
         pointsNP = self.nodePath.attachNewNode(ls.create())
         pointsNP.setPos(pointsNP, 0, -self.depth/2, self.height/2)
         pointsNP.setHpr(0, 90, 0)
