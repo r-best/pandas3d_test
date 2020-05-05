@@ -42,7 +42,27 @@ class World(ShowBase):
 
         # Render floor, for debugging
         node = BulletRigidBodyNode('floor')
-        node.addShape(BulletPlaneShape((0, 0, 1), 1))
+        node.addShape(BulletPlaneShape((0, 0, 1), 0))
+        self.render.attachNewNode(node)
+        self.world.attachRigidBody(node)
+        
+        node = BulletRigidBodyNode('wall-left')
+        node.addShape(BulletPlaneShape((1, 0, 0), 100))
+        self.render.attachNewNode(node)
+        self.world.attachRigidBody(node)
+        
+        node = BulletRigidBodyNode('wall-right')
+        node.addShape(BulletPlaneShape((-1, 0, 0), -400))
+        self.render.attachNewNode(node)
+        self.world.attachRigidBody(node)
+        
+        node = BulletRigidBodyNode('wall-down')
+        node.addShape(BulletPlaneShape((0, 1, 0), 0))
+        self.render.attachNewNode(node)
+        self.world.attachRigidBody(node)
+        
+        node = BulletRigidBodyNode('wall-up')
+        node.addShape(BulletPlaneShape((0, -1, 0), -300))
         self.render.attachNewNode(node)
         self.world.attachRigidBody(node)
     
@@ -68,7 +88,7 @@ class World(ShowBase):
             pTo = render.getRelativePoint(base.cam, pTo)
 
             obj = self.world.rayTestClosest(pFrom, pTo)
-            obj.getNode().setAngularVelocity((0,0,50))
+            obj.getNode().setLinearVelocity((500,0,0))
     
     def spawn_entity(self, entity_type="Bird"):
         """
